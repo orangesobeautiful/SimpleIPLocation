@@ -104,7 +104,10 @@ func main() {
 	}
 
 	fmt.Println("Start Listen!")
-	http.ListenAndServe(fmt.Sprintf("%s:%s", host, port), serverHandler)
+	err = http.ListenAndServe(fmt.Sprintf("%s:%s", host, port), serverHandler)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	fmt.Println("End Server")
 }

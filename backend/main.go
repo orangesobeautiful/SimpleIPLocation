@@ -95,7 +95,8 @@ func IPInfo(c *gin.Context) {
 			"Continent":   record.Continent.Names["en"],
 			"Country":     record.Country.IsoCode,
 			"City":        record.City.Names["en"],
-			"Coordinates": fmt.Sprintf("%v, %v", record.Location.Latitude, record.Location.Longitude),
+			"Longitude": record.Location.Longitude,
+			"Latitude":  record.Location.Latitude,
 		})
 	}
 }

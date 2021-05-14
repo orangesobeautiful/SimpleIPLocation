@@ -2,7 +2,7 @@
   "name": "simpleiplocation-frontend",
   "version": "0.0.1",
   "description": "SimpleIPLocation的前端",
-  "productName": "simpleiplocation-frontend",
+  "productName": "simpleiplocation",
   "author": "orangesobeautiful <orangesobeautiful@gmail.com>",
   "private": true,
   "scripts": {
@@ -13,7 +13,9 @@
     "@quasar/extras": "^1.0.0",
     "axios": "^0.21.1",
     "core-js": "^3.6.5",
-    "quasar": "^1.0.0"
+    "leaflet": "^1.7.1",
+    "quasar": "^1.0.0",
+    "vue2-leaflet": "^2.7.0"
   },
   "devDependencies": {
     "@quasar/app": "^2.0.0",

@@ -15,47 +15,6 @@ import (
 
 var mmdb *geoip2.Reader
 
-func PrintGeoip2CityInfo(record *geoip2.City) {
-	fmt.Println("大陸 Code:\t", record.Continent.Code)
-	fmt.Println("大陸名稱:\t", record.Continent.Names)
-	fmt.Println("大陸 GeoNameID:\t", record.Continent.GeoNameID)
-
-	fmt.Println("國家名稱:\t", record.Country.Names)
-	fmt.Println("國家 IsoCode:\t", record.Country.IsoCode)
-	fmt.Println("國家 GeoNameID:\t", record.Country.GeoNameID)
-	fmt.Println("是否為歐盟?:\t", record.Country.IsInEuropeanUnion)
-
-	fmt.Println("城市名稱:\t", record.City.Names)
-	fmt.Println("城市 GeoNameID:\t", record.City.GeoNameID)
-
-	fmt.Println("AccuracyRadius:\t", record.Location.AccuracyRadius)
-	fmt.Println("經度:\t", record.Location.Longitude)
-	fmt.Println("緯度:\t", record.Location.Latitude)
-	fmt.Println("MetroCode:\t", record.Location.MetroCode)
-	/*
-		fmt.Println("時區:\t", record.Location.TimeZone)
-
-		fmt.Println("郵遞區號:\t", record.Postal.Code)
-
-		fmt.Println("RegisteredCountry 名稱:\t", record.RegisteredCountry.Names)
-		fmt.Println("RegisteredCountry IsoCode:\t", record.RegisteredCountry.IsoCode)
-		fmt.Println("RegisteredCountry GeoNameID:\t", record.RegisteredCountry.GeoNameID)
-		fmt.Println("RegisteredCountry 是否為歐盟?:\t", record.RegisteredCountry.IsInEuropeanUnion)
-
-		fmt.Println("record.RepresentedCountry:\t", record.RepresentedCountry)
-
-		fmt.Println("RepresentedCountry 名稱:\t", record.RepresentedCountry.Names)
-		fmt.Println("RepresentedCountry IsoCode:\t", record.RepresentedCountry.IsoCode)
-		fmt.Println("RepresentedCountry GeoNameID:\t", record.RepresentedCountry.GeoNameID)
-		fmt.Println("RepresentedCountry 類型:\t", record.RepresentedCountry.Type)
-		fmt.Println("RepresentedCountry 是否為歐盟?:\t", record.RepresentedCountry.IsInEuropeanUnion)
-
-		fmt.Println("Subdivisions:\t", record.Subdivisions)
-
-		fmt.Println("Traits:\t", record.Traits)
-	*/
-}
-
 // GetIP gets a requests IP address by reading off the forwarded-for
 // header (for proxies) and falls back to use the remote address.
 func GetIP(r *http.Request) string {
@@ -79,22 +38,20 @@ func IPInfo(c *gin.Context) {
 		ip := net.ParseIP(ipStr)
 
 		if ip == nil {
-			c.String(400, "Bad Request")
+			c.String(http.StatusBadRequest, "Bad Request")
 			return
 		}
 
 		record, err := mmdb.City(ip)
 		if err != nil {
-			c.String(404, "IP Not Found")
+			c.String(http.StatusNotFound, "IP Not Found")
 			return
 		}
 
-		//PrintGeoip2CityInfo(record)
-
-		c.JSON(200, gin.H{"IP": ipStr,
-			"Continent":   record.Continent.Names["en"],
-			"Country":     record.Country.IsoCode,
-			"City":        record.City.Names["en"],
+		c.JSON(http.StatusOK, gin.H{"IP": ipStr,
+			"Continent": record.Continent.Names["en"],
+			"Country":   record.Country.IsoCode,
+			"City":      record.City.Names["en"],
 			"Longitude": record.Location.Longitude,
 			"Latitude":  record.Location.Latitude,
 		})
@@ -102,14 +59,19 @@ func IPInfo(c *gin.Context) {
 }
 
 func main() {
-
 	var err error
+
+	defer func() {
+		if err != nil {
+			os.Exit(1)
+		}
+	}()
 
 	mmdb, err = geoip2.Open("dpip/dbip-city-lite-2021-05.mmdb")
 	if err != nil {
-		log.Fatal(err)
+		log.Print(err)
+		return
 	}
-	defer mmdb.Close()
 
 	var cliHost = flag.String("host", "", "Listen Host")
 	var cliPort = flag.String("port", "80", "Listen Port")
@@ -141,9 +103,11 @@ func main() {
 	}
 
 	if output != "" {
-		f, err = os.OpenFile(output, os.O_CREATE|os.O_APPEND, 0666)
+		const NormalFileMode os.FileMode = 0644
+		f, err = os.OpenFile(output, os.O_CREATE|os.O_APPEND, NormalFileMode)
 		if err != nil {
-			log.Fatal(err)
+			log.Print(err)
+			return
 		}
 		ioWriterList = append(ioWriterList, f)
 
@@ -165,7 +129,8 @@ func main() {
 	fmt.Println("Start Listen!")
 	err = r.Run(fmt.Sprintf("%s:%s", host, port))
 	if err != nil {
-		log.Fatal(err)
+		log.Print(err)
+		return
 	}
 
 	fmt.Println("End Server")

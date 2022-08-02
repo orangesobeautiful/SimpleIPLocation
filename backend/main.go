@@ -1,61 +1,96 @@
 package main
 
 import (
-	"flag"
+	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"net"
 	"net/http"
+	"net/netip"
 	"os"
+	"path/filepath"
 
-	"github.com/gin-gonic/gin"
+	"SimpleIPLocation/internal/config"
+
+	"github.com/julienschmidt/httprouter"
 	"github.com/oschwald/geoip2-golang"
 )
 
 var mmdb *geoip2.Reader
 
-// GetIP gets a requests IP address by reading off the forwarded-for
-// header (for proxies) and falls back to use the remote address.
-func GetIP(r *http.Request) string {
-	forwarded := r.Header.Get("X-FORWARDED-FOR")
-	if forwarded != "" {
-		return forwarded
+func getEXEDir() (string, error) {
+	exePath, err := os.Executable()
+	if err != nil {
+		return "", err
 	}
-	return r.Host
+
+	edir := filepath.Dir(exePath)
+	return edir, nil
 }
 
-func IPInfo(c *gin.Context) {
-	if c.Request.Method == "GET" {
-		var ipStr string
-		ipStr = c.Param("ip")
-		if len(ipStr) > 0 && ipStr[0] == '/' {
-			ipStr = ipStr[1:]
-		}
-		if ipStr == "" {
-			ipStr = GetIP(c.Request)
-		}
-		ip := net.ParseIP(ipStr)
+type ipInfoResp struct {
+	IP        string  // IP 位置
+	Continent string  // 大陸/州
+	Country   string  // 國家
+	City      string  // 城市
+	Longitude float64 // 經度
+	Latitude  float64 // 緯度
+}
 
-		if ip == nil {
-			c.String(http.StatusBadRequest, "Bad Request")
-			return
-		}
-
-		record, err := mmdb.City(ip)
-		if err != nil {
-			c.String(http.StatusNotFound, "IP Not Found")
-			return
-		}
-
-		c.JSON(http.StatusOK, gin.H{"IP": ipStr,
-			"Continent": record.Continent.Names["en"],
-			"Country":   record.Country.IsoCode,
-			"City":      record.City.Names["en"],
-			"Longitude": record.Location.Longitude,
-			"Latitude":  record.Location.Latitude,
-		})
+func netipAddr2netIP(addr netip.Addr) net.IP {
+	if addr.Is4() {
+		p := make(net.IP, net.IPv6len)
+		p[10] = 0xff
+		p[11] = 0xff
+		b4Ary := addr.As4()
+		p[12] = b4Ary[0]
+		p[13] = b4Ary[1]
+		p[14] = b4Ary[2]
+		p[15] = b4Ary[3]
+		return p
 	}
+	return net.IP(addr.AsSlice())
+}
+
+func IPInfo(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	var ipStr string
+	var ip netip.Addr
+	ipStr = ps.ByName("ip")
+	if len(ipStr) > 0 && ipStr[0] == '/' {
+		ipStr = ipStr[1:]
+	}
+
+	if ipStr == "" {
+		ip = ParseReqRemoteIP(r)
+	} else {
+		ip, _ = netip.ParseAddr(ipStr)
+	}
+
+	if !ip.IsValid() {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte("ip format was error"))
+		return
+	}
+
+	record, err := mmdb.City(netipAddr2netIP(ip))
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte("IP Not Found"))
+		return
+	}
+
+	resp := ipInfoResp{
+		IP:        ipStr,
+		Continent: record.Continent.Names["en"],
+		Country:   record.Country.IsoCode,
+		City:      record.City.Names["en"],
+		Longitude: record.Location.Longitude,
+		Latitude:  record.Location.Latitude,
+	}
+
+	w.Header().Set("content-type", "application/json; charset=utf-8")
+	jEncoder := json.NewEncoder(w)
+	_ = jEncoder.Encode(resp)
 }
 
 func main() {
@@ -67,71 +102,33 @@ func main() {
 		}
 	}()
 
-	mmdb, err = geoip2.Open("dpip/dbip-city-lite-2021-05.mmdb")
+	exeDir, err := getEXEDir()
+	if err != nil {
+		log.Print("getEXEDir failed, err=", err)
+		return
+	}
+
+	mmdb, err = geoip2.Open(filepath.Join(exeDir, "server-data", "ipdb", "ipdb.mmdb"))
 	if err != nil {
 		log.Print(err)
 		return
 	}
 
-	var cliHost = flag.String("host", "", "Listen Host")
-	var cliPort = flag.String("port", "80", "Listen Port")
-	var cliLogFile = flag.String("log", "", "Log file path")
-	var cliStdout = flag.Bool("stdout", false, "Stdout Log?")
-	var cliDebug = flag.Bool("debug", false, "Debug Mode")
-
-	flag.Parse()
-
-	host := *cliHost
-	port := *cliPort
-	output := *cliLogFile
-	stdout := *cliStdout
-	debugMode := *cliDebug
-
-	var f *os.File
-
-	if port == "env" {
-		if v := os.Getenv("PORT"); len(v) > 0 {
-			port = v
-		}
-	}
-
-	var ioWriterList []io.Writer
-
-	if stdout {
-		gin.ForceConsoleColor()
-		ioWriterList = append(ioWriterList, os.Stdout)
-	}
-
-	if output != "" {
-		const NormalFileMode os.FileMode = 0644
-		f, err = os.OpenFile(output, os.O_CREATE|os.O_APPEND, NormalFileMode)
-		if err != nil {
-			log.Print(err)
-			return
-		}
-		ioWriterList = append(ioWriterList, f)
-
-		defer f.Close()
-	}
-
-	gin.DefaultWriter = io.MultiWriter(ioWriterList...)
-
-	if debugMode {
-		gin.SetMode(gin.DebugMode)
-	} else {
-		gin.SetMode(gin.ReleaseMode)
-	}
-
-	r := gin.Default()
-	r.GET("/ipinfo/", IPInfo)
-	r.GET("/ipinfo/:ip", IPInfo)
-
-	fmt.Println("Start Listen!")
-	err = r.Run(fmt.Sprintf("%s:%s", host, port))
-	if err != nil {
+	if err = config.InitConfig(); err != nil {
 		log.Print(err)
 		return
 	}
+	configInfo := config.GetConfigInfo()
 
-	fmt.Println("End Server")
+	router := httprouter.New()
+	router.GET("/ipinfo", IPInfo)
+	router.GET("/ipinfo/:ip", IPInfo)
+
+	address := fmt.Sprintf("%s:%d", configInfo.Host, configInfo.Port)
+	fmt.Printf("Start Listen at %s\n", address)
+
+	if err = http.ListenAndServe(address, router); err != nil {
+		log.Print(err)
+		return
+	}
 }

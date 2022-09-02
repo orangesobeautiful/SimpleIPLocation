@@ -63,6 +63,13 @@ func InitIPDB() error {
 	}
 
 	ipdbDataDir := filepath.Join(exeDir, "server-data", "ipdb")
+	if dirExist, _ := utils.CheckPathExist(ipdbDataDir); !dirExist {
+		err = os.MkdirAll(ipdbDataDir, utils.NormalDirPerm)
+		if err != nil {
+			return errors.New("create ipdb data dir failed, err=" + err.Error())
+		}
+	}
+
 	dbUpdateConf.dbSRCType = dbType
 	dbUpdateConf.downSpeedLimit = ipdbConfig.DownSpeedLimit
 	dbUpdateConf.newPath = filepath.Join(ipdbDataDir, "ipdb-new.mmdb")

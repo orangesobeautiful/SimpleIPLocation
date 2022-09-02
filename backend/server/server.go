@@ -24,7 +24,6 @@ func RunServer(host string, port int) error {
 	address := fmt.Sprintf("%s:%d", host, port)
 	fmt.Printf("Start Listen at %s\n", address)
 
-	var err error
-	err = http.ListenAndServe(address, router)
+	err := http.ListenAndServe(address, router)
 	return err
 }

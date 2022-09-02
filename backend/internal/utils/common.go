@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 )
@@ -14,4 +15,15 @@ func GetEXEDir() (string, error) {
 
 	edir := filepath.Dir(exePath)
 	return edir, nil
+}
+
+func CheckPathExist(fPath string) (bool, error) {
+	_, err := os.Stat(fPath)
+	if err == nil {
+		return true, nil
+	} else if errors.Is(err, os.ErrNotExist) {
+		return false, nil
+	} else {
+		return false, err
+	}
 }

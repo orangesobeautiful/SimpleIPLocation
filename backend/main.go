@@ -16,9 +16,9 @@ func main() {
 		log.Fatalf("init failed, err=%s", err)
 	}
 
-	configInfo := config.GetConfigInfo()
+	serverConfig := config.GetServerConfig()
 
-	err = server.RunServer(configInfo.Host, configInfo.Port)
+	err = server.RunServer(serverConfig.Host, serverConfig.Port)
 	if err != nil {
 		log.Fatalf("run server failed, err=%s", err)
 	}

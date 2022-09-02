@@ -51,10 +51,7 @@ func StrToDBType(s string) (DBSRCType, bool) {
 // InitIPDB 初始化 IP DB，使用 internal/ipdb 前需要先進行初始化
 func InitIPDB() error {
 	var err error
-	exeDir, err := utils.GetEXEDir()
-	if err != nil {
-		return errors.New("getEXEDir failed, err=" + err.Error())
-	}
+	exeDir := utils.GetEXEDir()
 
 	ipdbConfig := config.GetIPDBConfig()
 	dbType, tVaild := StrToDBType(ipdbConfig.Type)
@@ -63,7 +60,7 @@ func InitIPDB() error {
 	}
 
 	ipdbDataDir := filepath.Join(exeDir, "server-data", "ipdb")
-	if dirExist, _ := utils.CheckPathExist(ipdbDataDir); !dirExist {
+	if dirExist, _ := utils.PathExist(ipdbDataDir); !dirExist {
 		err = os.MkdirAll(ipdbDataDir, utils.NormalDirPerm)
 		if err != nil {
 			return errors.New("create ipdb data dir failed, err=" + err.Error())
@@ -76,14 +73,14 @@ func InitIPDB() error {
 	dbUpdateConf.orgPath = filepath.Join(ipdbDataDir, "ipdb.mmdb")
 	dbUpdateConf.oldPath = filepath.Join(ipdbDataDir, "ipdb-old.mmdb")
 
-	dbExist, _ := utils.CheckPathExist(dbUpdateConf.orgPath)
+	dbExist, _ := utils.PathExist(dbUpdateConf.orgPath)
 	if dbExist {
 		mmdb, err = geoip2.Open(dbUpdateConf.orgPath)
 		if err != nil {
 			return errors.New("geoip2.Open failed, err=" + err.Error())
 		}
 	} else {
-		err = downloadDB(dbType, dbUpdateConf.newPath, 0)
+		err = downloadDB(dbType, dbUpdateConf.newPath, dbUpdateConf.downSpeedLimit)
 		if err != nil {
 			return err
 		}
@@ -177,14 +174,14 @@ func nextAutoUpdateDuration(dbType DBSRCType) time.Duration {
 // changeIPDB 將舊的 ipdb 替換成新的
 func changeIPDB(newPath, orgPath, oldPath string) error {
 	var err error
-	if fExist, _ := utils.CheckPathExist(oldPath); fExist {
+	if fExist, _ := utils.PathExist(oldPath); fExist {
 		err = os.RemoveAll(oldPath)
 		if err != nil {
 			return errors.New("remove old ipdb failed, err=" + err.Error())
 		}
 	}
 
-	if fExist, _ := utils.CheckPathExist(orgPath); fExist {
+	if fExist, _ := utils.PathExist(orgPath); fExist {
 		err = os.Rename(orgPath, oldPath)
 		if err != nil {
 			return errors.New("rename ipdb org to old failed, err=" + err.Error())

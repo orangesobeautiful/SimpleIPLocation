@@ -6,18 +6,26 @@ import (
 	"path/filepath"
 )
 
-// GetEXEDir 取得當前執行檔的目錄路徑
-func GetEXEDir() (string, error) {
+var exeDir string
+
+// InitEXEDirValue 初始化執行檔目錄
+func InitEXEDirValue() error {
 	exePath, err := os.Executable()
 	if err != nil {
-		return "", err
+		return err
 	}
 
-	edir := filepath.Dir(exePath)
-	return edir, nil
+	exeDir = filepath.Dir(exePath)
+	return nil
 }
 
-func CheckPathExist(fPath string) (bool, error) {
+// GetEXEDir 取得當前執行檔的目錄路徑
+func GetEXEDir() string {
+	return exeDir
+}
+
+// PathExist 檢查路徑是否存在
+func PathExist(fPath string) (bool, error) {
 	_, err := os.Stat(fPath)
 	if err == nil {
 		return true, nil

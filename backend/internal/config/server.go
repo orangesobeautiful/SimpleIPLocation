@@ -2,6 +2,7 @@ package config
 
 import (
 	"errors"
+	"path/filepath"
 
 	"github.com/spf13/viper"
 )
@@ -18,7 +19,7 @@ type ServerConfigInfo struct {
 func parseServerConfigFile(serverConfig *ServerConfigInfo) error {
 	var err error
 	viper.SetConfigType("toml")
-	viper.AddConfigPath(".")
+	viper.AddConfigPath(filepath.Join("server-data", "config"))
 	viper.SetConfigName("config.toml")
 
 	// 讀取設定

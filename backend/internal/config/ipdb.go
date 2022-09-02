@@ -2,6 +2,7 @@ package config
 
 import (
 	"errors"
+	"path/filepath"
 
 	"github.com/spf13/viper"
 )
@@ -22,7 +23,7 @@ type DBIPInfo struct {
 func parseIPDBConfigFile(ipdbConfig *IPDBConfigInfo) error {
 	var err error
 	viper.SetConfigType("toml")
-	viper.AddConfigPath(".")
+	viper.AddConfigPath(filepath.Join("server-data", "config"))
 	viper.SetConfigName("ipdb.toml")
 
 	// 讀取設定

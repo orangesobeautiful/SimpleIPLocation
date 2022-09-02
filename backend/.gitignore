@@ -23,5 +23,3 @@ go.work
 
 # Run Env
 server-data/*
-config.toml
-ipdb.toml

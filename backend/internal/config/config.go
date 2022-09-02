@@ -1,7 +1,11 @@
 package config
 
 import (
+	"SimpleIPLocation/internal/utils"
+	"errors"
 	"flag"
+	"os"
+	"path/filepath"
 )
 
 var serverConfig ServerConfigInfo
@@ -10,6 +14,14 @@ var ipdbConfig IPDBConfigInfo
 // InitConfig 初始化設定
 func InitConfig() error {
 	// 解析設定檔
+	configDirPath := filepath.Join(utils.GetEXEDir(), "server-data", "config")
+	if dExist, _ := utils.PathExist(configDirPath); !dExist {
+		err := os.MkdirAll(configDirPath, utils.NormalDirPerm)
+		if err != nil {
+			return errors.New("create config dir failed, err=" + err.Error())
+		}
+	}
+
 	if err := parseServerConfigFile(&serverConfig); err != nil {
 		return err
 	}

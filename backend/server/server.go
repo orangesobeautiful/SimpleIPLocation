@@ -2,8 +2,11 @@ package server
 
 import (
 	"SimpleIPLocation/controllers"
+	"SimpleIPLocation/internal/httpfs"
+	"SimpleIPLocation/internal/utils"
 	"fmt"
 	"net/http"
+	"path/filepath"
 
 	"github.com/julienschmidt/httprouter"
 )
@@ -14,6 +17,8 @@ func NewRouter() *httprouter.Router {
 	router.GET("/ipinfo", controllers.IPInfo)
 	router.GET("/ipinfo/:ip", controllers.IPInfo)
 
+	spaFS := http.Dir(filepath.Join(utils.GetEXEDir(), "server-data", "public", "original"))
+	router.NotFound = httpfs.NewFileServer(spaFS, true)
 	return router
 }
 

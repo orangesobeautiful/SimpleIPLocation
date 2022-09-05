@@ -2,7 +2,6 @@ package config
 
 import (
 	"errors"
-	"path/filepath"
 
 	"github.com/spf13/viper"
 )
@@ -20,10 +19,10 @@ type DBIPInfo struct {
 	UpdateDay int // 每月幾號自動更新
 }
 
-func parseIPDBConfigFile(ipdbConfig *IPDBConfigInfo) error {
+func parseIPDBConfigFile(configDirPath string, ipdbConfig *IPDBConfigInfo) error {
 	var err error
 	viper.SetConfigType("toml")
-	viper.AddConfigPath(filepath.Join("server-data", "config"))
+	viper.AddConfigPath(configDirPath)
 	viper.SetConfigName("ipdb.toml")
 
 	// 讀取設定
@@ -34,4 +33,11 @@ func parseIPDBConfigFile(ipdbConfig *IPDBConfigInfo) error {
 	// 解析設定到 serverConfig
 	err = viper.Unmarshal(ipdbConfig)
 	return err
+}
+
+func (c *IPDBConfigInfo) SetToDefault() {
+	c.Type = "dbip"
+	c.AutoUpdate = true
+	c.DownSpeedLimit = 0
+	c.DBIP.UpdateDay = 5
 }

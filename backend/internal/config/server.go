@@ -2,7 +2,6 @@ package config
 
 import (
 	"errors"
-	"path/filepath"
 
 	"github.com/spf13/viper"
 )
@@ -16,11 +15,11 @@ type ServerConfigInfo struct {
 	Debug       bool   // 是否為 debug 模式
 }
 
-func parseServerConfigFile(serverConfig *ServerConfigInfo) error {
+func parseServerConfigFile(configDirPath string, serverConfig *ServerConfigInfo) error {
 	var err error
 	viper.SetConfigType("toml")
-	viper.AddConfigPath(filepath.Join("server-data", "config"))
-	viper.SetConfigName("config.toml")
+	viper.AddConfigPath(configDirPath)
+	viper.SetConfigName("server.toml")
 
 	// 讀取設定
 	if err = viper.ReadInConfig(); err != nil {
@@ -30,4 +29,12 @@ func parseServerConfigFile(serverConfig *ServerConfigInfo) error {
 	// 解析設定到 serverConfig
 	err = viper.Unmarshal(serverConfig)
 	return err
+}
+
+func (c *ServerConfigInfo) SetToDefault() {
+	c.Host = "0.0.0.0"
+	c.Port = 80
+	c.LogFilePath = ""
+	c.STDOUT = false
+	c.Debug = false
 }

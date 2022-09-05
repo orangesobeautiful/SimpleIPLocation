@@ -4,6 +4,7 @@ import (
 	"SimpleIPLocation/internal/utils"
 	"errors"
 	"flag"
+	"log"
 	"os"
 	"path/filepath"
 )
@@ -22,11 +23,15 @@ func InitConfig() error {
 		}
 	}
 
-	if err := parseServerConfigFile(&serverConfig); err != nil {
-		return err
+	if err := parseServerConfigFile(configDirPath, &serverConfig); err != nil {
+		log.Printf("read server config failed, err=%s\n", err)
+		log.Printf("using default server config value\n")
+		serverConfig.SetToDefault()
 	}
-	if err := parseIPDBConfigFile(&ipdbConfig); err != nil {
-		return err
+	if err := parseIPDBConfigFile(configDirPath, &ipdbConfig); err != nil {
+		log.Printf("read ip db config failed, err=%s\n", err)
+		log.Printf("using default ip db config value\n")
+		ipdbConfig.SetToDefault()
 	}
 
 	// 解析執行命令參數

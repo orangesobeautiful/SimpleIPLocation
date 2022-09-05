@@ -1,3 +1,3 @@
-#!/bin/bash
+#!/bin/sh
 
-go build -ldflags="-s"
+CGO_ENABLED=0 go build -ldflags="-s"

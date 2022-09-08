@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"path/filepath"
+	"time"
 
 	"github.com/julienschmidt/httprouter"
 )
@@ -29,6 +30,13 @@ func RunServer(host string, port int) error {
 	address := fmt.Sprintf("%s:%d", host, port)
 	fmt.Printf("Start Listen at %s\n", address)
 
-	err := http.ListenAndServe(address, router)
+	httpServer := &http.Server{
+		Addr:         address,
+		Handler:      router,
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 5 * time.Second,
+	}
+
+	err := httpServer.ListenAndServe()
 	return err
 }

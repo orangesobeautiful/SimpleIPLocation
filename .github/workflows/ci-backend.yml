@@ -28,7 +28,7 @@ jobs:
         version: v1.47
 
         # Optional: working directory, useful for monorepos
-        # working-directory: somedir
+        working-directory: backend
     
     - name: Set up Go
       uses: actions/setup-go@v3
@@ -40,6 +40,7 @@ jobs:
       run: go test -v 
 
     - name: Build
+      working-directory: backend
       run: ./scripts/Build.sh
 
     

@@ -4,13 +4,51 @@ import (
 	"SimpleIPLocation/internal/utils"
 	"errors"
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
+
+	"github.com/fatih/structs"
+	"github.com/spf13/viper"
 )
+
+// ConfigType config info interface
+type ConfigType interface {
+	SetToDefault()
+}
 
 var serverConfig ServerConfigInfo
 var ipdbConfig IPDBConfigInfo
+
+func parseConfigFile(configName, configDirPath string, inputConfig ConfigType) error {
+	var err error
+	v := viper.New()
+	v.SetConfigType("toml")
+	v.AddConfigPath(configDirPath)
+	v.SetConfigName(configName)
+
+	// 讀取設定
+	if err = v.ReadInConfig(); err != nil {
+		log.Printf("Ignore: read %s config failed, err=%s\n", configName, err)
+
+		// 寫入預設設定
+		inputConfig.SetToDefault()
+		_ = v.MergeConfigMap(structs.Map(inputConfig))
+		writeErr := v.SafeWriteConfig()
+		if writeErr != nil {
+			err = fmt.Errorf("write default %s config file failed, err=%s", configName, writeErr.Error())
+			return err
+		}
+
+		log.Printf("using default %s config value\n", configName)
+		return nil
+	}
+
+	// 解析設定到 serverConfig
+	err = v.Unmarshal(inputConfig)
+	return err
+}
 
 // InitConfig 初始化設定
 func InitConfig() error {
@@ -23,15 +61,21 @@ func InitConfig() error {
 		}
 	}
 
-	if err := parseServerConfigFile(configDirPath, &serverConfig); err != nil {
-		log.Printf("read server config failed, err=%s\n", err)
-		log.Printf("using default server config value\n")
-		serverConfig.SetToDefault()
+	type configRead struct {
+		ConfigName    string
+		ConfigDirPath string
+		ConfigStruct  ConfigType
 	}
-	if err := parseIPDBConfigFile(configDirPath, &ipdbConfig); err != nil {
-		log.Printf("read ip db config failed, err=%s\n", err)
-		log.Printf("using default ip db config value\n")
-		ipdbConfig.SetToDefault()
+
+	configReadList := []configRead{
+		{"server", configDirPath, &serverConfig},
+		{"ipdb", configDirPath, &ipdbConfig},
+	}
+
+	for _, cr := range configReadList {
+		if err := parseConfigFile(cr.ConfigName, cr.ConfigDirPath, cr.ConfigStruct); err != nil {
+			return err
+		}
 	}
 
 	// 解析執行命令參數

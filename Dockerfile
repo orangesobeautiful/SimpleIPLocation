@@ -16,19 +16,25 @@ COPY ./frontend/ /frontend/
 
 RUN quasar build -m spa
 
-FROM --platform=$BUILDPLATFORM docker.io/library/golang:1.19.0-alpine3.16 as build-backend
+FROM --platform=$BUILDPLATFORM docker.io/library/golang:1.19.1-alpine as build-backend
 
 WORKDIR /backend/
+
+RUN go version
 
 COPY ./backend/go.mod ./backend/go.sum /backend/
 RUN go mod download
 
 COPY ./backend/ /backend/
-RUN chmod +x scripts/Build.sh && scripts/Build.sh
+
+ARG TARGETOS TARGETARCH
+
+RUN chmod +x scripts/Build.sh
+RUN GOOS=$TARGETOS GOARCH=$TARGETARCH scripts/Build.sh
 
 COPY --from=build-frontend /frontend/dist/spa/ /backend/frontend-dist/public/original/
 
-FROM --platform=$BUILDPLATFORM scratch
+FROM scratch
 
 WORKDIR /app/
 

@@ -1,0 +1,12 @@
+version: "3"
+
+services:
+  sip:
+    image: docker.io/owo9/simple-ip-location:latest
+    restart: always
+    ports:
+      - "8000:80"
+    volumes:
+      - ./server-data:/app/server-data
+      - /etc/ssl/certs:/etc/ssl/certs:ro
+

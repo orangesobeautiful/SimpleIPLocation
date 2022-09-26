@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM docker.io/library/node:16.16.0-alpine AS frontend-deps
+FROM --platform=$BUILDPLATFORM docker.io/library/node:16.17-alpine AS frontend-deps
 
 WORKDIR /frontend/
 

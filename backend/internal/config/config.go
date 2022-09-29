@@ -13,15 +13,15 @@ import (
 	"github.com/spf13/viper"
 )
 
-// ConfigType config info interface
-type ConfigType interface {
+// cBase config base interface
+type cBase interface {
 	SetToDefault()
 }
 
 var serverConfig ServerConfigInfo
 var ipdbConfig IPDBConfigInfo
 
-func parseConfigFile(configName, configDirPath string, inputConfig ConfigType) error {
+func parseConfigFile(configName, configDirPath string, inputConfig cBase) error {
 	var err error
 	v := viper.New()
 	v.SetConfigType("toml")
@@ -64,7 +64,7 @@ func InitConfig() error {
 	type configRead struct {
 		ConfigName    string
 		ConfigDirPath string
-		ConfigStruct  ConfigType
+		ConfigStruct  cBase
 	}
 
 	configReadList := []configRead{

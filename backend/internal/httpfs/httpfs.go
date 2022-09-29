@@ -13,20 +13,21 @@ import (
 
 const indexPage = "/index.html"
 
-type fileHandler struct {
+// FileHandler 用來處理靜態檔案的 http handler
+type FileHandler struct {
 	spaMode bool
 	root    http.FileSystem
 }
 
 // NewFileServer create new File Server
-func NewFileServer(rootFS http.FileSystem, spaMode bool) *fileHandler {
-	return &fileHandler{
+func NewFileServer(rootFS http.FileSystem, spaMode bool) *FileHandler {
+	return &FileHandler{
 		spaMode: spaMode,
 		root:    rootFS,
 	}
 }
 
-func (fHandler *fileHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (fHandler *FileHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	upath := r.URL.Path
 	if !strings.HasPrefix(upath, "/") {
 		upath = "/" + upath
@@ -45,7 +46,7 @@ func localRedirect(w http.ResponseWriter, r *http.Request, newPath string) {
 	w.WriteHeader(http.StatusMovedPermanently)
 }
 
-func (fHandler *fileHandler) openErrorHandler(w http.ResponseWriter, r *http.Request, err error) {
+func (fHandler *FileHandler) openErrorHandler(w http.ResponseWriter, r *http.Request, err error) {
 	if fHandler.spaMode && (errors.Is(err, fs.ErrNotExist) || errors.Is(err, fs.ErrPermission)) {
 		var f http.File
 		f, err = fHandler.root.Open(indexPage)
@@ -74,7 +75,7 @@ func (fHandler *fileHandler) openErrorHandler(w http.ResponseWriter, r *http.Req
 }
 
 // name is '/'-separated, not filepath.Separator.
-func (fHandler *fileHandler) serveFile(w http.ResponseWriter, r *http.Request, name string) {
+func (fHandler *FileHandler) serveFile(w http.ResponseWriter, r *http.Request, name string) {
 	// redirect .../index.html to .../
 	// can't use Redirect() because that would make the path absolute,
 	// which would be a problem running under StripPrefix

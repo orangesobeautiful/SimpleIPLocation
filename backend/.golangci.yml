@@ -91,6 +91,7 @@ linters:
     - nakedret
     - noctx
     - nolintlint
+    - revive
     - staticcheck
     - stylecheck
     - typecheck
@@ -112,7 +113,6 @@ linters:
   # - nestif
   # - prealloc
   # - testpackage
-  # - revive
   # - wsl
 
 issues:
@@ -139,8 +139,3 @@ issues:
 run:
   timeout: 5m
   go: "1.17" # TODO(ldez): we force to use an old version of Go for the CI and the tests.
-  skip-dirs:
-    - test/testdata_etc
-    - internal/cache
-    - internal/renameio
-    - internal/robustio

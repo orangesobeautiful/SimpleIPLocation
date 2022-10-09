@@ -18,7 +18,7 @@ func NewRouter() *httprouter.Router {
 	router.GET("/ipinfo", controllers.IPInfo)
 	router.GET("/ipinfo/:ip", controllers.IPInfo)
 
-	spaFS := http.Dir(filepath.Join(utils.GetEXEDir(), "public", "original"))
+	spaFS := http.Dir(filepath.Join(utils.GetEXEDir(), "frontend-static"))
 	router.NotFound = httpfs.NewFileServer(spaFS, true)
 	return router
 }

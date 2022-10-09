@@ -27,8 +27,6 @@ linters-settings:
       - ifElseChain
       - octalLiteral
       - whyNoLint
-  gocyclo:
-    min-complexity: 15
   goimports:
     local-prefixes: github.com/golangci/golangci-lint
   gomnd:

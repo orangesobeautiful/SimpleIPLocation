@@ -4,26 +4,32 @@ package httpfs
 
 import (
 	"errors"
+	"io"
 	"io/fs"
 	"net/http"
 	"os"
 	"path"
 	"strings"
+	"time"
 )
+
+var compressExtList = []string{"js", "css", "html", "ico"}
 
 const indexPage = "/index.html"
 
 // FileHandler 用來處理靜態檔案的 http handler
 type FileHandler struct {
-	spaMode bool
-	root    http.FileSystem
+	spaMode      bool
+	acptEncoding []string
+	root         http.FileSystem
 }
 
 // NewFileServer create new File Server
 func NewFileServer(rootFS http.FileSystem, spaMode bool) *FileHandler {
 	return &FileHandler{
-		spaMode: spaMode,
-		root:    rootFS,
+		spaMode:      spaMode,
+		acptEncoding: []string{"br", "gzip", "deflate"},
+		root:         rootFS,
 	}
 }
 
@@ -46,16 +52,47 @@ func localRedirect(w http.ResponseWriter, r *http.Request, newPath string) {
 	w.WriteHeader(http.StatusMovedPermanently)
 }
 
+// fOpen 套用壓縮格式開啟檔案
+func (fHandler *FileHandler) open(r *http.Request, name string) (http.File, string, error) {
+	var encodingDir string
+	var encoding string
+	if IsNeedCompress(name) {
+		encoding = ParseAcceptHeader(r.Header.Get("Accept-Encoding"), fHandler.acptEncoding)
+	}
+	if encoding == "" {
+		encodingDir = "original"
+	} else {
+		encodingDir = encoding
+	}
+
+	f, err := fHandler.root.Open(path.Join(encodingDir, name))
+	if err != nil {
+		return nil, "", err
+	}
+	return f, encoding, nil
+}
+
+// serveContent 回應客戶端要求的檔案並寫入相應的編碼格式
+func (fHandler *FileHandler) serveContent(
+	w http.ResponseWriter, req *http.Request, encoding, name string, modtime time.Time, content io.ReadSeeker) {
+	if encoding != "" {
+		w.Header().Set("content-encoding", encoding)
+		w.Header().Set("vary", "Accept-Encoding")
+	}
+	http.ServeContent(w, req, name, modtime, content)
+}
+
 func (fHandler *FileHandler) openErrorHandler(w http.ResponseWriter, r *http.Request, err error) {
 	if fHandler.spaMode && (errors.Is(err, fs.ErrNotExist) || errors.Is(err, fs.ErrPermission)) {
 		var f http.File
-		f, err = fHandler.root.Open(indexPage)
+		var encoding string
+		f, encoding, err = fHandler.open(r, indexPage)
 		if err == nil {
 			defer f.Close()
 			var d fs.FileInfo
 			d, err = f.Stat()
 			if err == nil {
-				http.ServeContent(w, r, d.Name(), d.ModTime(), f)
+				fHandler.serveContent(w, r, encoding, d.Name(), d.ModTime(), f)
 				return
 			}
 		}
@@ -64,7 +101,7 @@ func (fHandler *FileHandler) openErrorHandler(w http.ResponseWriter, r *http.Req
 	var msg string
 	var code int
 	if errors.Is(err, fs.ErrNotExist) {
-		msg, code = "not found", http.StatusNotFound
+		msg, code = "Not found", http.StatusNotFound
 	} else if errors.Is(err, fs.ErrPermission) {
 		msg, code = "Forbidden", http.StatusForbidden
 	} else {
@@ -72,6 +109,21 @@ func (fHandler *FileHandler) openErrorHandler(w http.ResponseWriter, r *http.Req
 	}
 
 	http.Error(w, msg, code)
+}
+
+func IsNeedCompress(name string) bool {
+	ext := path.Ext(name)
+	if len(ext) < 2 {
+		return false
+	}
+	ext = ext[1:]
+
+	for idx := range compressExtList {
+		if ext == compressExtList[idx] {
+			return true
+		}
+	}
+	return false
 }
 
 // name is '/'-separated, not filepath.Separator.
@@ -84,7 +136,7 @@ func (fHandler *FileHandler) serveFile(w http.ResponseWriter, r *http.Request, n
 		return
 	}
 
-	f, err := fHandler.root.Open(name)
+	f, encoding, err := fHandler.open(r, name)
 	if err != nil {
 		fHandler.openErrorHandler(w, r, err)
 		return
@@ -118,7 +170,8 @@ func (fHandler *FileHandler) serveFile(w http.ResponseWriter, r *http.Request, n
 		// use contents of index.html for directory, if present
 		index := strings.TrimSuffix(name, "/") + indexPage
 		var ff http.File
-		ff, err = fHandler.root.Open(index)
+		var idxEncoding string
+		ff, idxEncoding, err = fHandler.open(r, index)
 		if err == nil {
 			defer ff.Close()
 			var dd fs.FileInfo
@@ -126,6 +179,7 @@ func (fHandler *FileHandler) serveFile(w http.ResponseWriter, r *http.Request, n
 			if err == nil {
 				d = dd
 				f = ff
+				encoding = idxEncoding
 			}
 		} else {
 			// 請求的 URL 為目錄，禁止訪問
@@ -135,5 +189,5 @@ func (fHandler *FileHandler) serveFile(w http.ResponseWriter, r *http.Request, n
 		}
 	}
 
-	http.ServeContent(w, r, d.Name(), d.ModTime(), f)
+	fHandler.serveContent(w, r, encoding, d.Name(), d.ModTime(), f)
 }
